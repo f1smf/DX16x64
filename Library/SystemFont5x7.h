@@ -1,17 +1,5 @@
 /*
- *
  * System5x7
- *
- *
- * File Name         : System5x7.h
- * Date            : 28 Oct 2008
- * Font size in bytes  : 470
- * Font width        : 5
- * Font height       : 7
- * Font first char    : 32
- * Font last char     : 127
- * Font used chars    : 94
- *
  * The font data are defined as
  *
  * struct _FONT_ {
@@ -38,11 +26,6 @@
 #define SYSTEM5x7_WIDTH 5
 #define SYSTEM5x7_HEIGHT 7
 
-/*
- * added to allow fontname to match header file name.
- * as well as keep the old name for backward compability
- */
-
 #define SystemFont5x7 System5x7
 
 static uint8_t System5x7[] PROGMEM = {
@@ -51,8 +34,6 @@ static uint8_t System5x7[] PROGMEM = {
    0x07, // height
    0x20, // first char
    0x60, // char count
-
-   // Fixed width; char width table not used !!!!
 
    // font data
    0x00, 0x00, 0x00, 0x00, 0x00,   // (space)

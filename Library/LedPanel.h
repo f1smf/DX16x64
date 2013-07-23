@@ -37,32 +37,32 @@ D-IN
 	     +---------+
 	OE   | 07 | 08 | GND
 	     +---------+
-	L0    | 05 | 06 | GND
+	L0   | 05 | 06 | GND
 	     +---------+
-	L1    | 03 | 04 | GND
+	L1   | 03 | 04 | GND
 	     +---------+
-	L2    | 01 | 02 | L3
+	L2   | 01 | 02 | L3
 	     +---------+
 Where, the function of each port is defined by:
 
-	04-08-10-12-14-16. GND	: Ground
-	15. SCK: Serial clock pin.
-       13. STR - Serial Latch pin. To write an entire line.
-	11. LedR: Flag to determine Led Red
-	09. LedG: Flag to determine Led Green
-       07. OE0 : Led On/Off
-	05. L0	: Line Selector.
-	03. L1	: Line Selector.
-	01. L2	: Line Selector.
-	02. L3	: Line Selector.
-
+  04-08-10-12-14-16. GND
+  15. SCK : Serial clock pin.
+  13. STR : Serial Latch pin. To write an entire line.
+  11. LedR: Flag to determine Led Red
+  09. LedG: Flag to determine Led Green
+  07. OE  : Led On/Off
+  05. L0  : Line Selector.
+  03. L1  : Line Selector.
+  01. L2  : Line Selector.
+  02. L3  : Line Selector.
 */
-
-#include <inttypes.h>
-#include "Arduino.h"
-
 #ifndef LedPanel_h
 #define LedPanel_h
+
+#include <inttypes.h>
+#include "Print.h"
+#include "Arduino.h"
+
 
 // Fonts
 #define FONT            System5x7
@@ -76,24 +76,16 @@ Where, the function of each port is defined by:
 #define TYPEOF         uint8_t
 #define BITSIZE         4
 #define WINDOW_W	64
-#define WINDOW_H	16
+#define WINDOW_H	32
 #define SWITCH_L_OFF()  {PORTD &= 0b00001111;} // digital  4, 5, 6, 7 
 #define LATCH(M_STR)   {PORTD |= M_STR; PORTD &= ~M_STR;}
 #define CLOCK(M_SCK)   {PORTD |= M_SCK; PORTD &= ~M_SCK;}
 
 class LedPanel {
 public:
-   LedPanel(
-
-      uint8_t sck   = 2,
-      uint8_t str   = 3,
-      uint8_t oe    = 8,
-      uint8_t linea = 4,
-      uint8_t lineb = 5,
-      uint8_t linec = 6,
-      uint8_t lined = 7,
-      uint8_t ledg  = 11,
-      uint8_t ledr  = 12);
+   LedPanel(uint8_t sck = 2, uint8_t str = 3, uint8_t oe0 = 8,
+            uint8_t linea = 4, uint8_t lineb = 5, uint8_t linec = 6, uint8_t lined = 7,
+            uint8_t ledg0  = 14, uint8_t ledr0  = 15, uint8_t ledg1  = 16, uint8_t ledr1  = 17);
      
    //  Specifies the dimensions (width and height) of the display.
    void begin();
@@ -114,27 +106,34 @@ private:
    uint8_t _sck_mask;
    uint8_t _str_mask;
    uint8_t _oe_mask;
+
    uint8_t _linea_mask;
    uint8_t _lineb_mask;
    uint8_t _linec_mask;
    uint8_t _lined_mask;
-   uint8_t _ledr_mask;
-   uint8_t _ledg_mask;
+   uint8_t _ledr0_mask;
+   uint8_t _ledg0_mask;
+   uint8_t _ledr1_mask;
+   uint8_t _ledg1_mask;
    int _led_Brightness;
+   byte _line_lcd;
    uint8_t _buffer[WINDOW_H][WINDOW_W/4];  //Buffer Led
 
-   void fastSelectLine(uint8_t n);
    void drawline(int x1, int y1, int x2, int y2, byte color);
    void setbit(TYPEOF buffer[], byte pos, byte color);
    void spitbit(byte color);
-   byte readbit(TYPEOF buffer[], byte pos);
-   void spireadbit(TYPEOF buffer[], byte pos);
+   byte readbit(TYPEOF buffer[], uint8_t pos);
+//   void spireadbit(TYPEOF buffer[]);
+   void spireadbit(byte h);
+
+   void FastHLine(int x0, int y0, int x1, byte color);
+   void FastVLine(int x0, int y0, int y1, byte color);
 
    void initPin(uint8_t *pro, uint8_t pin);
    void setuptimer(int divider=630);
    /* fast integer (1 byte) modulus */
    // http://code.google.com/p/ht1632c/wiki/Optimizations
-   byte _mod(byte n, byte d);
+   uint8_t _mod(byte n, byte d);
    byte _div(byte n, byte d);
    byte _rnd(byte min, byte max);
    uint8_t _pow(uint8_t a, uint8_t b);

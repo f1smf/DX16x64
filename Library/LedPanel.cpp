@@ -1,11 +1,22 @@
-// #include <math.h>
-
-#include "SystemFont5x7.h"
 #include "LedPanel.h"
+#include "SystemFont5x7.h"
+
+#ifdef __AVR__
+ #include <avr/pgmspace.h>
+#else
+ #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
+#endif
+
+
+
+#include <stdio.h>
+#include <string.h>
+#include <inttypes.h>
+#include "Arduino.h"
 
 LedPanel::LedPanel(uint8_t sck, uint8_t str, uint8_t oe,
-        uint8_t linea, uint8_t lineb, uint8_t linec,
-        uint8_t lined, uint8_t ledr,  uint8_t ledg)
+        uint8_t linea, uint8_t lineb, uint8_t linec, uint8_t lined,
+        uint8_t ledr0,  uint8_t ledg0, uint8_t ledr1,  uint8_t ledg1)
 {
    initPin(&_sck_mask , sck);
    initPin(&_str_mask , str);
@@ -15,8 +26,11 @@ LedPanel::LedPanel(uint8_t sck, uint8_t str, uint8_t oe,
    initPin(&_lineb_mask, lineb);
    initPin(&_linec_mask, linec);
    initPin(&_lined_mask, lined);
-   initPin(&_ledr_mask , ledr);
-   initPin(&_ledg_mask , ledg);
+   
+   initPin(&_ledr0_mask , ledr0);
+   initPin(&_ledg0_mask , ledg0);
+   initPin(&_ledr1_mask , ledr1);
+   initPin(&_ledg1_mask , ledg1);
 }
 
 void LedPanel::initPin(uint8_t *mask_pro, uint8_t pin) {
@@ -29,30 +43,34 @@ void LedPanel::SetBrightness(uint8_t Brightness) {
         Brightness = 127;
     _led_Brightness = Brightness * 3;
 }
-/**
- * @todo: Transfer setuptimer for this
- */
+
 void LedPanel::begin() {
-    setuptimer(300);
+    setuptimer(22);
     clear();
 }
 
 //comme [0,0] de l'ecran, les points de debut et de fin
 void LedPanel::scan(int xini, int yini) {
-byte i = 0;
-int j = 0;
-int k = 0 ;
-   digitalWrite( 13, digitalRead( 13 ) ^ 1 );
-   
-   for(i = 0; i < WINDOW_H ; i++) {    
-     fastSelectLine(i);
-     for(j = 0; j < WINDOW_W; j++){
-        spireadbit(_buffer[i], j);
-      }
+ //  uint8_t i = 0;
+ //  uint8_t j = 0;
+   int k = 0 ;   
+//   for(i = 0; i < WINDOW_H ; i++) {    
+     if (_line_lcd > (WINDOW_H/2) -1) _line_lcd = 0;
+   SWITCH_L_OFF();
+   if (_line_lcd & 0x01) PORTD |= _linea_mask; //4
+   if (_line_lcd & 0x02) PORTD |= _lineb_mask; //5
+   if (_line_lcd & 0x04) PORTD |= _linec_mask; //6
+   if (_line_lcd & 0x08) PORTD |= _lined_mask; //7
+//     fastSelectLine(_line_lcd);
+//     for(j = 0; j < WINDOW_W; j++){
+        spireadbit(_line_lcd);
+//      }
       PORTD |= _str_mask;
-         asm("nop;nop;nop;nop;nop;nop;");
+         asm("nop;nop;");
       PORTD &= ~_str_mask;
+         asm("nop;nop;");
       PORTB &= ~_oe_mask; //pin os low
+
       for(k = 0; k < _led_Brightness; k++){
          asm("nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;");
          asm("nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;");
@@ -60,31 +78,21 @@ int k = 0 ;
          asm("nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;");
       }
     PORTB |= _oe_mask; // pin oe high
-   }
-
+    _line_lcd++;
+//   }
 }
 
 // escreve status na porta 3
-void LedPanel::spitbit(byte color) {
-  PORTB |= _ledr_mask;  // pin ledr high
-  PORTB |= _ledg_mask;  // pin ledr high
-  PORTD &= ~_sck_mask;
-  if (color & 0x01)
-      PORTB &= ~_ledr_mask;  // pin ledr low
-  if (color & 0x02)
-       PORTB &= ~_ledg_mask;  // pin ledr low
-   PORTD |= _sck_mask;
-}
-
-// Selectionne une ligne en fonction
-// des pins L0, L1, L2, L3
-void LedPanel::fastSelectLine(uint8_t n) {
-   SWITCH_L_OFF();
-   if (n & 0x01) PORTD |= _linea_mask; //4
-   if (n & 0x02) PORTD |= _lineb_mask; //5
-   if (n & 0x04) PORTD |= _linec_mask; //6
-   if (n & 0x08) PORTD |= _lined_mask; //7
-}
+//void LedPanel::spitbit(byte color) {
+//  PORTB |= _ledr_mask;  // pin ledr high
+//  PORTB |= _ledg_mask;  // pin ledr high
+//  PORTD &= ~_sck_mask;
+//  if (color & 0x01)
+//      PORTB &= ~_ledr_mask;  // pin ledr low
+//  if (color & 0x02)
+//       PORTB &= ~_ledg_mask;  // pin ledr low
+//   PORTD |= _sck_mask;
+//}
 
 void LedPanel::clear(byte mode) {
    byte i,j,k;
@@ -104,7 +112,7 @@ void LedPanel::clear(byte mode) {
               }
             }
          }
-         delay(2);
+ //        delay(2);
       }    
    }
    for (j = 0; j < WINDOW_H; j++) {
@@ -112,19 +120,63 @@ void LedPanel::clear(byte mode) {
       _buffer[j][i] = 0;
     }
 }
+void LedPanel::spireadbit(byte h) {
 
-void LedPanel::spireadbit(TYPEOF buffer[], byte pos) {
-   uint8_t tmp1 = pos & 3;
-   uint8_t tmp2 = pos >> 2;
-   PORTB |= _ledr_mask;  // pin ledr high
-   PORTB |= _ledg_mask;  // pin ledr high
-   PORTD &= ~_sck_mask;
-   if (buffer[tmp2] & (0x80 >> (tmp1)))
-      PORTB &= ~_ledr_mask;  // pin ledr low
-   if (buffer[tmp2] & (0x08 >> (tmp1)))
-       PORTB &= ~_ledg_mask;  // pin ledr low
-   PORTD |= _sck_mask;
+  byte tmp1, tmp2 , tmp3, tmp4, j;
+  for(j = 0; j < WINDOW_W; j++){
+      tmp1 = j & 3;
+      tmp2 = (j >> 2);
+      tmp3 = 0x80 >> tmp1;
+      tmp4 = 0x08 >> tmp1;
+      PORTD &= ~_sck_mask;  // pin sck low
+      if (_buffer[h][tmp2] & tmp3)
+//         PORTC &= ~_ledr0_mask;  // pin ledr low
+         PORTC &= B11111110;  // pin ledr low
+      else
+//         PORTC |= _ledr0_mask;  // pin led red high
+         PORTC |= B00000001;  // pin led red high
+      if (_buffer[h][tmp2] & tmp4)
+//         PORTC &= ~_ledg0_mask;  // pin ledr low
+         PORTC &= B11111101;  // pin ledr low
+      else 
+//         PORTC |= _ledg0_mask;  // pin led green high
+         PORTC |= B00000010;  // pin led red high
+      if (_buffer[h+16][tmp2] & tmp3)
+//         PORTC &= ~_ledr1_mask;  // pin ledr low
+         PORTC &= B11111011;  // pin ledr low
+      else
+//         PORTC |= _ledr1_mask;  // pin led red high
+         PORTC |= B00000100;  // pin led red high
+
+      if (_buffer[h+16][tmp2] & tmp4)
+//         PORTC &= ~_ledg1_mask;  // pin ledr low
+         PORTC &= B11110111;  // pin ledr low
+      else 
+//         PORTC |= _ledg1_mask;  // pin led green high
+         PORTC |= B00001000;  // pin led red high
+      PORTD |= _sck_mask;
+  }
 }
+
+//void LedPanel::spireadbit1(TYPEOF buffer[]) {
+ // byte tmp1, tmp2 , j;
+//  for(j = 0; j < WINDOW_W; j++){
+//      tmp1 = j & 3;
+//      tmp2 = j >> 2;
+//      PORTB |= _ledr_mask;  // pin led red high
+//      PORTB |= _ledg_mask;  // pin led green high
+//      PORTD &= ~_sck_mask;  // pin sck low
+//      if (buffer[tmp2] & (0x80 >> (tmp1)))
+//         PORTB &= ~_ledr_mask;  // pin ledr low
+//      else
+//         PORTB |= _ledr_mask;  // pin led red high
+//      if (buffer[tmp2] & (0x08 >> (tmp1)))
+//         PORTB &= ~_ledg_mask;  // pin ledr low
+//      else 
+//         PORTB |= _ledg_mask;  // pin led green high
+//      PORTD |= _sck_mask;
+//  }
+//}
 
 void LedPanel::enqueueChar(byte c, int xPos, int yPos, byte color) {
   byte j, i;                                            //bitmask and iterators
@@ -160,7 +212,7 @@ byte LedPanel::readbit(TYPEOF buffer[], byte pos) {
    return (tmp);
 }
 
-void LedPanel::setbit(TYPEOF buffer[], byte pos, byte color ) {
+void LedPanel::setbit(TYPEOF buffer[], uint8_t pos, uint8_t color ) {
    uint8_t tmp1 = _mod(pos, BITSIZE);
    uint8_t tmp2 = _div(pos, BITSIZE);
    buffer[tmp2]  &=  ~(0x80 >> tmp1);
@@ -211,19 +263,47 @@ void LedPanel::line(int x0, int y0, int x1, int y1, byte color) {
    for(;;) {
       if ( (x0 < WINDOW_W) && (y0 < WINDOW_H))
          setbit(_buffer[y0], x0, color);
+      else
+        break;
       if (x0 == x1 && y0 == y1) break;
-      if ( (x0 > WINDOW_W) || (y0 > WINDOW_H)) break;
       e2 = 2 * err;
       if (e2 >= dy) { err += dy; x0 += sx; } /* e_xy+e_x > 0 */
       if (e2 <= dx) { err += dx; y0 += sy; } /* e_xy+e_y < 0 */
    }
 }
 
+void LedPanel::FastHLine(int x0, int y0, int x1, byte color) {  
+   if (y0 < WINDOW_H) {
+      for(;;) {
+          if (x0 < WINDOW_W)
+             setbit(_buffer[y0], x0, color);
+          else
+            break;
+          if (x0 == x1) break;
+          x0++;
+      }
+   }
+}
+
+void LedPanel::FastVLine(int x0, int y0, int y1, byte color) {  
+   if (x0 < WINDOW_W) {
+      for(;;) {
+          if (y0 < WINDOW_H)
+             setbit(_buffer[y0], x0, color);
+          else
+            break;
+          if (y0 == y1) break;
+          y0++;
+      }
+   }
+}
+
+// Draw a rectangle
 void LedPanel::rect(int x0, int y0, int x1, int y1, byte color) {
-   line(x0, y0, x0, y1, color); /* left line   */
-   line(x1, y0, x1, y1, color); /* right line  */
-   line(x0, y0, x1, y0, color); /* top line    */
-   line(x0, y1, x1, y1, color); /* bottom line */
+   FastVLine(x0, y0, y1, color); /* left line   */
+   FastVLine(x1, y0, y1, color); /* right line  */
+   FastHLine(x0, y0, x1, color); /* top line    */
+   FastHLine(x0, y1, x1, color); /* bottom line */
 }
 
 void LedPanel::circle(int xm, int ym, int r, byte color) {
