@@ -75,8 +75,8 @@ Where, the function of each port is defined by:
 // Buffer
 #define TYPEOF         uint8_t
 #define BITSIZE         4
-#define WINDOW_W	64
-#define WINDOW_H	32
+#define WINDOW_W	64 
+#define WINDOW_H	32  // 2 * (16/64)
 #define SWITCH_L_OFF()  {PORTD &= 0b00001111;} // digital  4, 5, 6, 7 
 #define LATCH(M_STR)   {PORTD |= M_STR; PORTD &= ~M_STR;}
 #define CLOCK(M_SCK)   {PORTD |= M_SCK; PORTD &= ~M_SCK;}
@@ -91,13 +91,12 @@ public:
    void begin();
    void SetBrightness(byte Brightness =  127);
    //  Scan buffer to serial for debug
-   void scan2serial();
-   void scan(int xini = 0, int yini = 0);
+   void scan();
    void clear(byte mode= 0);
    void enqueueChar(byte c, int xPos = 0, int yPos = 0, byte color = 1);
    // Graphic functions
    void line(int x0, int y0, int x1, int y1, byte color);
-   void rect(int x0, int y0, int x1, int y1, byte color);
+   void rect(int x0, int y0, int x1, int y1, boolean  mode, byte color);
    void circle(int xm, int ym, int r, byte color);
    void ellipse(int x0, int y0, int x1, int y1, byte color);
    void bezier(int x0, int y0, int x1, int y1, int x2, int y2, byte color);
@@ -117,6 +116,7 @@ private:
    uint8_t _ledg1_mask;
    int _led_Brightness;
    byte _line_lcd;
+   boolean _line_oe;
    uint8_t _buffer[WINDOW_H][WINDOW_W/4];  //Buffer Led
 
    void drawline(int x1, int y1, int x2, int y2, byte color);
